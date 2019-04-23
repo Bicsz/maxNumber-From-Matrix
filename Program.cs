@@ -6,26 +6,22 @@ namespace MaxNubmerGenerator
 {
     class Program
     {
-        
         static void Main(string[] args)
         {
-            List<byte> path;
-
-
             /// <summary>
             /// Находит индек максимального числа в полученном листе, исключая те элементы, которые содержатся в пройденном пути
             /// </summary>
-            /// <param name="arr">масив</param>
+            /// <param name="neighbourhood_local">текущая точка</param>
+            /// <param name="path_local">уже пройденный путь</param>
             /// <returns>индекс максимального элмента</returns>
-            int findMax(List<ElementOfMatrix> neighbourhood_local)
+            int findMax(List<ElementOfMatrix> neighbourhood_local,List<byte> path_local)
             {
                 int IndexFoMaxValue = -1;
                 int MaxValue = int.MinValue;
-
-                
+               
                 foreach (ElementOfMatrix element_local in neighbourhood_local)
                 {
-                    if(path.FindIndex(x=>x==element_local.Index)==-1)
+                    if (path_local.FindIndex(x => x == element_local.Index) == -1)
                     {
                         if (element_local.Value > MaxValue)
                         {
@@ -34,20 +30,17 @@ namespace MaxNubmerGenerator
                         }
                     }
                 }
-
                 return IndexFoMaxValue;//есил вернет -1, значит идти некуда
             }
-
-
-            List<ElementOfMatrix> ofMatrices = new List<ElementOfMatrix>();//основная структура данных 
+            List <ElementOfMatrix> ofMatrices = new List<ElementOfMatrix>();//основная структура данных 
             int j = 0;
-
 
             //разбираем строки на числа
             Console.WriteLine("Input your matrix:");
             ElementOfMatrix element;
-            for (int i=0;i<3;i++)
-                Console.ReadLine().Split().ToList().ForEach(x=> {
+            for (int i = 0; i < 3; i++)
+                Console.ReadLine().Split().ToList().ForEach(x =>
+                {
                     element = new ElementOfMatrix(int.Parse(x), (byte)ofMatrices.Count);
                     if (j > 0)
                     {
@@ -63,85 +56,77 @@ namespace MaxNubmerGenerator
                         ofMatrices[ofMatrices.Count - 3].addNeighbourhood(element);
                     }
 
-                    j = j < 2 ? j+1 : 0;
+                    j = j < 2 ? j + 1 : 0;
 
                     ofMatrices.Add(element);
                 });
+            List<List<byte>> globalPath = new List<List<byte>>();
 
-            path = new List<byte>();
-
-
-            int nexIndex = findMax(ofMatrices);//ищем самое максимальное значение чтобы с него начать
-            if (nexIndex != -1)
-                path.Add((byte)nexIndex);
-            else
+            ///Получает на вход текущую точку и уже пройденный путь.
+            ///Расчитывает всевозможные пути из точки, основным путем считая большее большие числа из рядом стоящих
+            List<byte> walker( ElementOfMatrix element_local, List<byte> path_local)
             {
-                Console.WriteLine("it`s not a normal matrix!");
-                return;
-            }
-
-            
-            //генерируем путь, идя по соседям, выбирая того соседа, у которого Value больше
-            while (true)
-            {
-                nexIndex = findMax(ofMatrices[path.Last()].getNeighbourhood());
-                if(nexIndex!=-1)
-                    path.Add((byte)nexIndex);
-                else
+                int index_local;
+                while(true)
                 {
-                    break;
-                }
-            }
-
-
-            bool I_DO_IT = false;
-
-
-            //если были сипользованы не все элементы матрицы, то следовательно было получено не самое большое число, поэтому ищем другой путь
-            if (path.Count<9)
-            {
-                List<byte> DONT_IT = new List<byte>();//точки максимума матрицы, с которых нельзя начинать поиск пиути
-                while (!I_DO_IT)
-                {
-                    //Console.WriteLine("Bed choise...");
-
-                    DONT_IT.Add(path[0]);
-                    path = new List<byte>();
-                    path = DONT_IT;
-
-                    nexIndex = findMax(ofMatrices);//иметируем, будто бы мы там уже были, чтобы код вернул точку, не из тех, в которых быть нельзя
-                    path = new List<byte>();
-
-                    if (nexIndex != -1)
-                        path.Add((byte)nexIndex);
-
-
-                    //генерируем путь, идя по соседям, выбирая того соседа, у которого Value больше
-                    while (true)
-                    {
-                        nexIndex = findMax(ofMatrices[path.Last()].getNeighbourhood());
-                        if (nexIndex != -1)
-                            path.Add((byte)nexIndex);
-                        else
+                    index_local = findMax(element_local.getNeighbourhood(), path_local);//ищет приоритетную точку для следующего шага          
+                    //Все другие соседние точки, если еще в них небыл и если эта точка, не приоритетная, и идет вызов этой же функции
+                    ((List<ElementOfMatrix>)element_local.getNeighbourhood()).ForEach(x => {
+                        if (index_local != x.Index  && path_local.FindIndex(y => y == x.Index) == -1)
                         {
-                            break;
+                            List<byte> path_next_temp = new List<byte>();
+                            path_next_temp.AddRange(path_local);//чтобы защитить путь от доступа использовано не прямое назаначение переменных, а через AddRange
+                            path_next_temp.Add(x.Index);//доавление в созданный альтернативный путь точки
+                            globalPath.Add(walker(x, path_next_temp));//старт процесса для альтернативной точки с альтернативным путем
                         }
+                    });
+                    if (index_local != -1)
+                    {
+                        //если путь этой точки еще не закончился, то оан делает шаг в приоритетную точку
+                        path_local.Add((byte)index_local);
+                        element_local = ofMatrices[(byte)index_local];
                     }
-
-                    //если получилось найти путь, то выходим
-                    if (path.Count >= 9)
-                        I_DO_IT = true;
+                    else
+                        return path_local;//если путь точки зашел в тупик, то вернуть путь
                 }
             }
+            List<byte> DONT_IT = new List<byte>();
+            bool I_DO_IT = false;
+            int INDEX;
+            List<byte> path_temp;
+            List<long> maxs = new List<long>();
 
-            path.ForEach(x=> {
-                Console.Write(ofMatrices[x].Value);
-            });
+            while (!I_DO_IT)
+            {
+                INDEX = findMax(ofMatrices, DONT_IT);
+                path_temp = new List<byte>();
+                path_temp.Add((byte)INDEX);
+                globalPath.Add(walker(ofMatrices[INDEX], path_temp));//MAIN PROCESS
+
+                //нахождение самого "удачного" пути
+                long max = long.MinValue;
+                long number = 0;
+                globalPath.ForEach(x =>
+                {
+                    number = 0;
+                    for (int i = 0; i < x.Count; i++)
+                    {
+                        number += ofMatrices[x[i]].Value * (long)Math.Pow(10, x.Count - i - 1);//перевод индексов пути в Value
+                    }
+                    if (number > max)
+                        max = number;
+                });
+                maxs.Add(max);
+
+                //Если вдруг не существует путь, проходящий через все точки(маловерятно), то найти все пути, начиная с другого числа
+                if (max >= 100000000)
+                    I_DO_IT = true;
+                else
+                    DONT_IT.Add(globalPath[0][0]);
+            }
+            Console.Write(maxs.Max());//вывести самый большой путь из всех путей
             Console.ReadKey();
-            //Console.WriteLine("END");
-
         }
-
 
         /// <summary>
         /// Элемент матрицы, который хранит в себе своих соседей, свой индекс в основном масиве и свое значение
@@ -152,7 +137,7 @@ namespace MaxNubmerGenerator
             internal int Value { get; set; }
             internal byte Index { get; set; }
 
-            internal ElementOfMatrix(int Value,byte Index)
+            internal ElementOfMatrix(int Value, byte Index)
             {
                 this.Value = Value;
                 this.Index = Index;
@@ -163,7 +148,7 @@ namespace MaxNubmerGenerator
             {
                 neighbourhood.Add(element);
             }
-            internal dynamic getNeighbourhood(int at=-1)
+            internal dynamic getNeighbourhood(int at = -1)
             {
                 if (at < 0)
                     return neighbourhood;
@@ -171,7 +156,5 @@ namespace MaxNubmerGenerator
                     return neighbourhood[at];
             }
         }
-
-        
     }
 }
